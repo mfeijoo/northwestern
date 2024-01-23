@@ -18,12 +18,11 @@ dates = []
 notes = []
 
 for filename in indrafiles:
-    filenow = open(filename)
-    datenow = filenow.readline()[11:]
-    dates.append(datenow)
-    notenow = filenow.readline()[7:]
-    notes.append(notenow)
-    filenow.close()
+    with open (f's3://indradas/{filename}') as filenow:
+        datenow = filenow.readline()[11:]
+        dates.append(datenow)
+        notenow = filenow.readline()[7:]
+        notes.append(notenow)
 
 dffiles = pd.DataFrame({'file':indrafiles, 'date':dates, 'note':notes})
 i_list = dffiles.index[dffiles.date.str.contains('000')].tolist()
