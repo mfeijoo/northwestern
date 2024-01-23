@@ -3,19 +3,24 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from glob import glob
+import boto3
 
 st.title('Calculate integrals of shots')
 
-listofindra = glob('Indra*.csv')
+s3 = boto3.client('s3')
 
-listnoultrafast = [i for i in listofindra if 'ultrafast' not in i]
+response = s3.list_objects_v2(Bucket='indradas')
+
+indrafiles = [file['Key'] for file in response.get('Contents', [])][1:]
+
+listnoultrafast = [i for i in indrafiles if 'ultrafast' not in i]
 
 filename = st.selectbox('Select file to calculate integrals', listnoultrafast)
 
 @st.cache_data
 def read_dataframe(file):
-    df = pd.read_csv(file, skiprows = 4)
+    path = f's3://indradas/{file}'
+    df = pd.read_csv(path, skiprows = 4)
     return df
 
 df = read_dataframe(filename)

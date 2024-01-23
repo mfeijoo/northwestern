@@ -36,7 +36,13 @@ st.dataframe(dffiles)
 filenow = st.selectbox('Select File to Analyze', dffiles.file)
 
 #Take a quick look at the raw data
-dforig = pd.read_csv(filenow, skiprows = 4)
+@st.cache_data
+def read_dataframe(file):
+    path = f's3://indradas/{file}'
+    df = pd.read_csv(path, skiprows = 4)
+    return df
+
+dforig = read_dataframe(filenow)
 df = dforig.loc[:, ['number', 'time', 'temp', 'ch0', 'ch1']]
 #st.dataframe(df)
 
