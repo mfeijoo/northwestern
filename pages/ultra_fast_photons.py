@@ -19,7 +19,8 @@ filenow = st.selectbox('Select file to analyze:', listoffiles)
 
 @st.cache_data
 def read_dataframe(file):
-    df = pd.read_csv(file, skiprows = 4)
+    path = f's3://indradas/{file}'
+    df = pd.read_csv(path, skiprows = 4)
     return df
 
 df = read_dataframe(filenow)
