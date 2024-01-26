@@ -4,6 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import boto3
+#from glob import glob
 
 st.title('Calculate integrals of shots')
 
@@ -11,9 +12,11 @@ s3 = boto3.client('s3')
 
 response = s3.list_objects_v2(Bucket='indradas')
 
-indrafiles = [file['Key'] for file in response.get('Contents', [])][1:]
+filenames = [file['Key'] for file in response.get('Contents', [])][1:]
 
-listnoultrafast = [i for i in indrafiles if 'ultrafast' not in i]
+#filenames = glob('Indra*.csv')
+
+listnoultrafast = [i for i in filenames if 'ultrafast' not in i]
 
 filename = st.selectbox('Select file to calculate integrals', listnoultrafast)
 
@@ -21,6 +24,7 @@ filename = st.selectbox('Select file to calculate integrals', listnoultrafast)
 def read_dataframe(file):
     path = f's3://indradas/{file}'
     df = pd.read_csv(path, skiprows = 4)
+    #df = pd.read_csv(file, skiprows = 4)
     return df
 
 df = read_dataframe(filename)
@@ -33,7 +37,7 @@ dfchz = df.loc[:, 'ch0':] - zeros
 dfchz.columns = ['ch0z', 'ch1z']
 dfz = pd.concat([df, dfchz], axis = 1)
 
-ACR = st.number_input('ACR value', value = 0.851)
+ACR = st.number_input('ACR value', value = 0.83, format = '%.2f')
 dfz['sensorcharge'] = dfz.ch0z * 0.03
 dfz['cerenkovcharge'] = dfz.ch1z * 0.03
 dfz['dose'] = dfz.sensorcharge - dfz.cerenkovcharge * ACR
@@ -61,32 +65,28 @@ dfz.fillna({'pulsenum':0}, inplace = True)
 dfz['pulsecoincide'] = dfz.loc[dfz.pulse, 'number'].diff() == 1
 dfz.fillna({'pulsecoincide':False}, inplace = True)
 dfz['singlepulse'] = dfz.pulse & ~dfz.pulsecoincide
-dfz['pulsetoplot'] = dfz.singlepulse * 0.02 
+dfz['pulsetoplot'] = dfz.singlepulse * 1 
 
-dfz0 = dfz.loc[:, ['time', 'sensorcharge']]
-dfz0.columns = ['time', 'signal']
-dfz0['ch'] = 'sensor'
-dfz1 = dfz.loc[:, ['time', 'cerenkovcharge']]
-dfz1.columns = ['time', 'signal']
-dfz1['ch'] = 'cerenkov'
-dfz2 = dfz.loc[:, ['time', 'pulsetoplot']]
-dfz2.columns = ['time', 'signal']
-dfz2['ch'] = 'pulse'
-dfztp = pd.concat([dfz0, dfz1, dfz2])
-
-@st.cache_data
-def plotgraph(df):
-    fig = px.scatter(df, x = 'time', y = 'signal', color = 'ch')
-    return fig
-
-fig0 = plotgraph(dfztp)
+#Group by 300 ms
+dfz['chunk'] = dfz.number // int(300000/750)
+dfg = dfz.groupby('chunk').agg({'time':np.median, 'ch0z':np.sum, 'ch1z':np.sum})
+dfg0 = dfg.loc[:,['time', 'ch0z']]
+dfg0.columns = ['time', 'signal']
+dfg0['ch'] = 'sensor'
+dfg1 = dfg.loc[:,['time', 'ch1z']]
+dfg1.columns = ['time', 'signal']
+dfg1['ch'] = 'cerenkov'
+dfgtp = pd.concat([dfg0, dfg1])
+fig2 = px.line(dfgtp, x='time', y='signal', color = 'ch', markers = False)
+dfz['shot'] = -1
 
 for (n, (s, f)) in enumerate(zip(sts, fts)):
-    fig0.add_vline(x=s, line_dash = 'dash', line_color = 'green', opacity = 0.5)
-    fig0.add_vline(x=f, line_dash = 'dash', line_color = 'red', opacity = 0.5)
+    fig2.add_vline(x=s, line_dash = 'dash', line_color = 'green', opacity = 0.5)
+    fig2.add_vline(x=f, line_dash = 'dash', line_color = 'red', opacity = 0.5)
     dfz.loc[(dfz.time > s) & (dfz.time < f), 'shot'] = n
 
-st.plotly_chart(fig0)
+fig2.update_xaxes(title = 'time (s)')
+st.plotly_chart(fig2)
 
 dfi = dfz.groupby('shot').agg({'sensorcharge':np.sum,
                                 'cerenkovcharge':np.sum,
@@ -95,3 +95,24 @@ dfi = dfz.groupby('shot').agg({'sensorcharge':np.sum,
 
 st.dataframe(dfi)
 
+pulseson = st.checkbox('See pulses')
+
+if pulseson:
+    dfzs = dfz[dfz.shot != -1]
+    dfz0 = dfzs.loc[:,['time', 'ch0z']]
+    dfz0.columns = ['time', 'signal']
+    dfz0['ch'] = 'sensor'
+    dfz1 = dfzs.loc[:, ['time', 'ch1z']]
+    dfz1.columns = ['time', 'signal']
+    dfz1['ch'] = 'cerenkov'
+    dfz2 = dfzs.loc[:, ['time', 'pulsetoplot']]
+    dfz2.columns = ['time', 'signal']
+    dfz2['ch'] = 'pulse'
+    dfztp = pd.concat([dfz0, dfz1, dfz2])
+    fig3 = px.line(dfztp, x='time', y='signal', color='ch', markers = True)
+
+    for (n, (s, f)) in enumerate(zip(sts, fts)):
+        fig3.add_vline(x=s, line_dash = 'dash', line_color = 'green', opacity = 0.5)
+        fig3.add_vline(x=f, line_dash = 'dash', line_color = 'red', opacity = 0.5)
+    fig3.update_xaxes(title = 'time (s)')
+    st.plotly_chart(fig3)
