@@ -49,7 +49,7 @@ def read_dataframe(file):
 
 dforig = read_dataframe(filenow)
 df = dforig.loc[:, ['number', 'time', 'temp', 'ch0', 'ch1']]
-#st.dataframe(df)
+st.dataframe(df)
 
 last_time = df.iloc[-1,1]
 zeros = df.loc[(df.time < 1) | (df.time > last_time -1), 'ch0':].mean()
