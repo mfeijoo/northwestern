@@ -206,7 +206,7 @@ if showpdddata:
 dfzprofile = dfz.loc[(dfz.time > t4) & (dfz.time < t5)]
 #fig6 = plotfig(dfzprofile, x_string = 'time', y_string = 'completedose')
 #st.plotly_chart(fig6)
-profilespeed = st.number_input('estimated motor speed', min_value = 8.00, max_value = 30.00, value = 9.26)
+profilespeed = st.number_input('estimated motor speed', min_value = 8.00, max_value = 30.00, value = 9.39)
 softmaxprofile = st.slider('soft value to calculate pdd maximum', min_value=0.9, max_value =1.0, value=0.90)
 dfzprofile['disttraveled'] = dfzprofile.time.diff() * profilespeed
 dfzprofile['pos1'] = dfzprofile.disttraveled.cumsum()
