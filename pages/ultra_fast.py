@@ -5,7 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import boto3
 #from glob import glob
-from sicpy.signal import argrelextrema
+from scipy.signal import argrelextrema
 
 st.title('Ultra Fast Analysis')
 
