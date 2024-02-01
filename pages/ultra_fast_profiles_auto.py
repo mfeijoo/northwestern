@@ -148,6 +148,7 @@ toffset = espace / nominal_speed
 profilefigs = []
 dfzprofiles = []
 profiletimes = []
+list_of_field_sizes = []
 profilespeed = st.number_input('estimated motor speed', min_value = 8.00, max_value = 30.00, value = 9.26)
 softmaxprofile = st.slider('soft value to calculate pdd maximum', min_value=0.9, max_value =1.0, value=0.90)
 profilesoft = st.slider('Soft value for profile', min_value =0, max_value =1000, value = 500)
@@ -205,6 +206,7 @@ for tnow in maximun_times_all:
             showarrow = False
             )
 
+    list_of_field_sizes.append(fieldsize.round(2))
     #calculate penumbra
     penumbraright1 = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.reldose > 80), 'pos'].max()
     penumbraright2 = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.reldose > 20), 'pos'].max()
@@ -243,3 +245,5 @@ for tnow, fignow, df in zip(profiletimes, profilefigs, dfzprofiles):
     if showprofiledata:
         st.dataframe(df.loc[:,['pos', 'reldose', 'dosesoft', 'dosepercent']])
     
+st.write('List of Field Sizes')
+st.write(list_of_field_sizes)
