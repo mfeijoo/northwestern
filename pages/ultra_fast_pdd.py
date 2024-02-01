@@ -82,8 +82,8 @@ if group:
     fig1b.update_xaxes(title = 'time (s)')
     st.plotly_chart(fig1b)
 
-t0 = st.number_input('time before beam on', min_value=0.0, max_value=df.time.round(1).max())
-t1 = st.number_input('time after beam off', min_value=0.0, max_value=df.time.round(1).max())
+t0 = st.number_input('time before beam on', min_value=0.0, max_value=df.time.round(1).max(), value = 1)
+t1 = st.number_input('time after beam off', min_value=0.0, max_value=df.time.round(1).max(), value = last_time -1)
 t2 = st.number_input('time begining of PDD', min_value=0.0, max_value=df.time.round(1).max())
 t3 = st.number_input('time end of PDD', min_value=0.0, max_value=df.time.round(1).max())
 depth = st.number_input('PDD depth (mm)', min_value=0, value = 130)
