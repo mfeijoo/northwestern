@@ -97,8 +97,8 @@ for t in maximun_times_all:
 st.plotly_chart(fig1b)
 
 
-t0 = st.number_input('time before beam on', min_value=0.0, max_value=df.time.round(1).max())
-t1 = st.number_input('time after beam off', min_value=0.0, max_value=df.time.round(1).max())
+t0 = st.number_input('time before beam on', min_value=0.0, max_value=df.time.round(1).max(), value = 1.00)
+t1 = st.number_input('time after beam off', min_value=0.0, max_value=df.time.round(1).max(), value = last_time - 1)
 nominal_speed = st.number_input('Nominal Speed (mm/s)', min_value = 0, value = 10)
 nominal_fieldsize = st.number_input('Nominal Field Size (mm)', value = 10)
 pulsesthreshold = st.slider('Chose threshold for pulses', min_value = 1, max_value = 20, value = 5)
