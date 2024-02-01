@@ -3,19 +3,19 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-#import boto3
-from glob import glob
+import boto3
+#from glob import glob
 import scipy
 
 st.title('Ultra Fast Analysis')
 
-#s3 = boto3.client('s3')
+s3 = boto3.client('s3')
 
-#response = s3.list_objects_v2(Bucket='indradas')
+response = s3.list_objects_v2(Bucket='indradas')
 
-#filenames = [file['Key'] for file in response.get('Contents', [])][1:]
+filenames = [file['Key'] for file in response.get('Contents', [])][1:]
 
-filenames = glob('Indra*.csv')
+#filenames = glob('Indra*.csv')
 
 listoffiles = [file for file in filenames if 'ultrafast' in file]
 
