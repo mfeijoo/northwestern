@@ -86,7 +86,7 @@ dfit = pd.concat(dfis)
 st.dataframe(dfit)
 
 fsizes = st.text_input('select field sizes (cm) separated by commas',
-        value = '0.5,0.5,0.5,10,10,10,5,5,5,4,4,4,3,3,3,2,2,2,1.5,1.5,1.5,1.2,1.2,1.2,1,1,1,0.8,0.8,0.8,10,10,10')
+        value = '1,1,1,10,10,8,8,6,6,5,5,4,4,3,3,10,10')
 listsizes = fsizes.split(',')
 sizesint = [float(i) for i in listsizes]
 if len(sizesint) != len(dfit):
