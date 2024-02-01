@@ -3,18 +3,19 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import boto3
-#from glob import glob
+#import boto3
+from glob import glob
+from scipy.signal import argrelextrema
 
 st.title('Ultra Fast Analysis')
 
-s3 = boto3.client('s3')
+#s3 = boto3.client('s3')
 
-response = s3.list_objects_v2(Bucket='indradas')
+#response = s3.list_objects_v2(Bucket='indradas')
 
-filenames = [file['Key'] for file in response.get('Contents', [])][1:]
+#filenames = [file['Key'] for file in response.get('Contents', [])][1:]
 
-#filenames = glob('Indra*.csv')
+filenames = glob('Indra*.csv')
 
 listoffiles = [file for file in filenames if 'ultrafast' in file]
 
@@ -22,9 +23,9 @@ filenow = st.selectbox('Select file to analyze:', listoffiles)
 
 @st.cache_data
 def read_dataframe(file):
-    path = f's3://indradas/{file}'
-    df = pd.read_csv(path, skiprows = 4)
-    #df = pd.read_csv(file, skiprows = 4)
+    #path = f's3://indradas/{file}'
+    #df = pd.read_csv(path, skiprows = 4)
+    df = pd.read_csv(file, skiprows = 4)
     return df
 
 df = read_dataframe(filenow)
@@ -66,29 +67,43 @@ def plotfig(df, x_string = 'time', y_string = 'voltage'):
 fig1 = plotfigch(dftp)
 
 st.plotly_chart(fig1)
+dfz['chunk'] = dfz.number // int(300000/750)
+dfg = dfz.groupby('chunk').agg({'time':np.median, 'ch0z':np.sum, 'ch1z':np.sum})
 
-group = st.checkbox('group every 300 ms')
-if group:
-    dfz['chunk'] = dfz.number // int(300000/750)
-    dfg = dfz.groupby('chunk').agg({'time':np.median, 'ch0z':np.sum, 'ch1z':np.sum})
-    dfg0 = dfg.loc[:,['time', 'ch0z']]
-    dfg0.columns = ['time', 'signal']
-    dfg0['ch'] = 'sensor'
-    dfg1 = dfg.loc[:,['time', 'ch1z']]
-    dfg1.columns = ['time', 'signal']
-    dfg1['ch'] = 'cerenkov'
-    dfgtp = pd.concat([dfg0, dfg1])
-    fig1b = px.line(dfgtp, x='time', y='signal', color = 'ch', markers = False)
-    fig1b.update_xaxes(title = 'time (s)')
-    st.plotly_chart(fig1b)
+#Calculate local maximuns
+ordernow = st.number_input('select order to find max of profiles', min_value = 1, max_value = 10, value = 8)
+maximuns = argrelextrema(dfg.ch0z.to_numpy(), np.greater, order = 8)
+maximuns_times = dfg.iloc[maximuns[0][2:-2], 0].to_list()
+
+dfg0 = dfg.loc[:,['time', 'ch0z']]
+dfg0.columns = ['time', 'signal']
+dfg0['ch'] = 'sensor'
+dfg1 = dfg.loc[:,['time', 'ch1z']]
+dfg1.columns = ['time', 'signal']
+dfg1['ch'] = 'cerenkov'
+dfgtp = pd.concat([dfg0, dfg1])
+fig1b = px.line(dfgtp, x='time', y='signal', color = 'ch', markers = False)
+fig1b.update_xaxes(title = 'time (s)')
+add_maxtimes_str = st.text_input('Add profile maximum times (separated by commas)', value = '')
+if add_maxtimes_str != '':
+    add_maxtimes_lst = add_maxtimes_str.split(',')
+    add_maxtimes_float = [float(i) for i in add_maxtimes_lst]
+    maximun_times_all = maximuns_times + add_maxtimes_float
+else:
+    maximun_times_all = maximuns_times
+maximun_times_all.sort()
+for t in maximun_times_all:
+    fig1b.add_vline(x = t, line_dash = 'dash', line_color = 'green')
+st.plotly_chart(fig1b)
+
 
 t0 = st.number_input('time before beam on', min_value=0.0, max_value=df.time.round(1).max())
 t1 = st.number_input('time after beam off', min_value=0.0, max_value=df.time.round(1).max())
 t2 = st.number_input('time begining of PDD', min_value=0.0, max_value=df.time.round(1).max())
 t3 = st.number_input('time end of PDD', min_value=0.0, max_value=df.time.round(1).max())
 depth = st.number_input('PDD depth (mm)', min_value=0, value = 130)
-t4 = st.number_input('time begining of profile', min_value=0.0, max_value=df.time.round(1).max())
-t5 = st.number_input('time end  of profile', min_value=0.0, max_value=df.time.round(1).max())
+nominal_speed = st.number_input('Nominal Speed (mm/s)', min_value = 0, value = 10)
+nominal_fieldsize = st.number_input('Nominal Field Size (mm)', value = 10)
 pulsesthreshold = st.slider('Chose threshold for pulses', min_value = 1, max_value = 20, value = 5)
 ACR = st.number_input('ACR', value = 0.83)
 
@@ -110,7 +125,6 @@ fig2 = plotfigch(dftpz)
 fig2.add_vline(x=t0, line_dash = 'dash', line_color = 'green', opacity = 0.5)
 fig2.add_vline(x=t1, line_dash = 'dash', line_color = 'red', opacity = 0.5)
 fig2.add_vrect(x0 = t2, x1 = t3, line_width = 0, fillcolor = 'red', opacity = 0.2)
-fig2.add_vrect(x0 = t4, x1 = t5, line_width = 0, fillcolor = 'green', opacity = 0.2)
 st.plotly_chart(fig2)
 #find pulses
 maxzeros = dfz.loc[(dfz.time < t0) | (dfz.time > t1), 'ch0z'].max()
@@ -202,89 +216,101 @@ if showpdddata:
     st.dataframe(dfzpdd.loc[:,['completedose', 'softdose', 'dosepercent', 'pos']])
 
 
-#Calculate profile
-dfzprofile = dfz.loc[(dfz.time > t4) & (dfz.time < t5)]
-#fig6 = plotfig(dfzprofile, x_string = 'time', y_string = 'completedose')
-#st.plotly_chart(fig6)
-profilespeed = st.number_input('estimated motor speed', min_value = 8.00, max_value = 30.00, value = 9.39)
+#Calculate profiles
+espace = nominal_fieldsize * 1.3
+toffset = espace / nominal_speed
+profilefigs = []
+dfzprofiles = []
+profiletimes = []
+profilespeed = st.number_input('estimated motor speed', min_value = 8.00, max_value = 30.00, value = 9.26)
 softmaxprofile = st.slider('soft value to calculate pdd maximum', min_value=0.9, max_value =1.0, value=0.90)
-dfzprofile['disttraveled'] = dfzprofile.time.diff() * profilespeed
-dfzprofile['pos1'] = dfzprofile.disttraveled.cumsum()
-centerprofile = dfzprofile.loc[dfzprofile.completedose >= dfzprofile.completedose.max() * softmaxprofile, 'pos1'].median()
-avmaxdose = dfzprofile.loc[dfzprofile.completedose >= dfzprofile.completedose.max() * softmaxprofile, 'completedose'].mean()
-dfzprofile['reldose'] = dfzprofile.completedose / avmaxdose * 100
-dfzprofile['pos'] = dfzprofile.pos1 - centerprofile
-fig7 = go.Figure()
-fig7.add_trace(
-        go.Scatter(
-            x = dfzprofile.pos,
-            y = dfzprofile.reldose,
-            name = 'pulses',
-            mode = 'markers',
-            marker = dict(size = 3, color = 'blue', opacity = 0.5),
-            )
-        )
-
-#profilemindose1 = st.number_input('Profile dose threshold (0.00xx)', value = 60)
-#profilemindose = profilemindose1 / 10000
 profilesoft = st.slider('Soft value for profile', min_value =0, max_value =1000, value = 500)
-#dfzgp = dfzprofile[dfzprofile.completedose > profilemindose]
-dfzgp = dfzprofile
-dfzgp['dosesoft'] = dfzgp.completedose.rolling(profilesoft, center = True).sum()
-dfzgp['dosepercent'] = dfzgp.dosesoft / dfzgp.dosesoft.max() * 100
-fig7.add_trace(
-        go.Scatter(
-            x=dfzgp.pos,
-            y=dfzgp.dosepercent,
-            mode = "lines",
-            line = go.scatter.Line(color = 'red'),
-            name = 'soft profile',
-            showlegend=True)
-        )
-            
-fig7.add_vline(x = 0, line_color = 'black', line_dash = 'dash')
-# Calculate field size
-edge1 = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.reldose > 50), 'pos'].max()
-fig7.add_vline(x = edge1, line_color = 'green', line_dash = 'dash')
-edge2 = dfzprofile.loc[(dfzprofile.pos < 0) & (dfzprofile.reldose > 50), 'pos'].min()
-fig7.add_vline(x = edge2, line_color = 'green', line_dash = 'dash')
-fieldsize = edge1 - edge2
-fig7.add_annotation(
-        x = -1,
-        y = 50,
-        text = 'Size: %.2f mm' %fieldsize,
-        font = dict(size = 11, color = 'red'),
-        showarrow = False
-        )
+for tnow in maximun_times_all:
+    t4 = tnow  - toffset
+    t5 = tnow  + toffset
+    dfzprofile = dfz.loc[(dfz.time > t4) & (dfz.time < t5)]
+    #fig6 = plotfig(dfzprofile, x_string = 'time', y_string = 'completedose')
+    #st.plotly_chart(fig6)
+    dfzprofile['disttraveled'] = dfzprofile.time.diff() * profilespeed
+    dfzprofile['pos1'] = dfzprofile.disttraveled.cumsum()
+    centerprofile = dfzprofile.loc[dfzprofile.completedose >= dfzprofile.completedose.max() * softmaxprofile, 'pos1'].median()
+    avmaxdose = dfzprofile.loc[dfzprofile.completedose >= dfzprofile.completedose.max() * softmaxprofile, 'completedose'].mean()
+    dfzprofile['reldose'] = dfzprofile.completedose / avmaxdose * 100
+    dfzprofile['pos'] = dfzprofile.pos1 - centerprofile
+    fig7 = go.Figure()
+    fig7.add_trace(
+            go.Scatter(
+                x = dfzprofile.pos,
+                y = dfzprofile.reldose,
+                name = 'pulses',
+                mode = 'markers',
+                marker = dict(size = 3, color = 'blue', opacity = 0.5),
+                )
+            )
 
-#calculate penumbra
-penumbraright1 = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.reldose > 80), 'pos'].max()
-penumbraright2 = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.reldose > 20), 'pos'].max()
-penumbraleft1 = dfzprofile.loc[(dfzprofile.pos < 0) & (dfzprofile.reldose > 80), 'pos'].min()
-penumbraleft2 = dfzprofile.loc[(dfzprofile.pos < 0) & (dfzprofile.reldose > 20), 'pos'].min()
-fig7.add_vrect(x0 = penumbraright1, x1 = penumbraright2, line_width = 0, fillcolor = 'orange', opacity = 0.5)
-fig7.add_vrect(x0 = penumbraleft2, x1 = penumbraleft1, line_width = 0, fillcolor = 'orange', opacity = 0.5)
+    #profilemindose1 = st.number_input('Profile dose threshold (0.00xx)', value = 60)
+    #profilemindose = profilemindose1 / 10000
+    #dfzgp = dfzprofile[dfzprofile.completedose > profilemindose]
+    dfzgp = dfzprofile
+    dfzgp['dosesoft'] = dfzgp.completedose.rolling(profilesoft, center = True).sum()
+    dfzgp['dosepercent'] = dfzgp.dosesoft / dfzgp.dosesoft.max() * 100
+    fig7.add_trace(
+            go.Scatter(
+                x=dfzgp.pos,
+                y=dfzgp.dosepercent,
+                mode = "lines",
+                line = go.scatter.Line(color = 'red'),
+                name = 'soft profile',
+                showlegend=True)
+            )
+                
+    fig7.add_vline(x = 0, line_color = 'black', line_dash = 'dash')
+    # Calculate field size
+    edge1 = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.reldose > 50), 'pos'].max()
+    fig7.add_vline(x = edge1, line_color = 'green', line_dash = 'dash')
+    edge2 = dfzprofile.loc[(dfzprofile.pos < 0) & (dfzprofile.reldose > 50), 'pos'].min()
+    fig7.add_vline(x = edge2, line_color = 'green', line_dash = 'dash')
+    fieldsize = edge1 - edge2
+    fig7.add_annotation(
+            x = -1,
+            y = 50,
+            text = 'Size: %.2f mm' %fieldsize,
+            font = dict(size = 11, color = 'red'),
+            showarrow = False
+            )
 
-penumbraright = penumbraright2 - penumbraright1
-penumbraleft = penumbraleft1 - penumbraleft2
+    #calculate penumbra
+    penumbraright1 = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.reldose > 80), 'pos'].max()
+    penumbraright2 = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.reldose > 20), 'pos'].max()
+    penumbraleft1 = dfzprofile.loc[(dfzprofile.pos < 0) & (dfzprofile.reldose > 80), 'pos'].min()
+    penumbraleft2 = dfzprofile.loc[(dfzprofile.pos < 0) & (dfzprofile.reldose > 20), 'pos'].min()
+    fig7.add_vrect(x0 = penumbraright1, x1 = penumbraright2, line_width = 0, fillcolor = 'orange', opacity = 0.5)
+    fig7.add_vrect(x0 = penumbraleft2, x1 = penumbraleft1, line_width = 0, fillcolor = 'orange', opacity = 0.5)
 
-fig7.add_annotation(
-        x = penumbraright2 + 5,
-        y = 50,
-        text = 'P.: %.2f mm' %penumbraright,
-        font = dict(size = 11, color = 'green'),
-        showarrow = False)
-fig7.add_annotation(
-        x = penumbraleft2 - 5,
-        y = 50,
-        text = 'P.: %.2f mm' %penumbraleft,
-        font = dict(size = 11, color = 'magenta'),
-        showarrow = False)
+    penumbraright = penumbraright2 - penumbraright1
+    penumbraleft = penumbraleft1 - penumbraleft2
+
+    fig7.add_annotation(
+            x = penumbraright2 + 5,
+            y = 50,
+            text = 'P.: %.2f mm' %penumbraright,
+            font = dict(size = 11, color = 'green'),
+            showarrow = False)
+    fig7.add_annotation(
+            x = penumbraleft2 - 5,
+            y = 50,
+            text = 'P.: %.2f mm' %penumbraleft,
+            font = dict(size = 11, color = 'magenta'),
+            showarrow = False)
 
 
-fig7.update_xaxes(title = 'pos. (mm)')
-fig7.update_yaxes(title = 'relative dose')
-st.plotly_chart(fig7)
-showprofiledata = st.checkbox('Show Profile data')
-if showprofiledata:
-    st.dataframe(dfzprofile.loc[:,['pos', 'completedose', 'dosesoft', 'dosepercent', 'reldose']]) 
+    fig7.update_xaxes(title = 'pos. (mm)')
+    fig7.update_yaxes(title = 'relative dose')
+    profilefigs.append(fig7)
+    dfzprofiles.append(dfzprofile)
+    profiletimes.append(tnow)
+
+for tnow, fignow in zip(profiletimes, profilefigs):
+    st.write('time profile: %.2f' %tnow)
+    st.plotly_chart(fignow)
+    
