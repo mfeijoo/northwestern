@@ -72,7 +72,7 @@ dfg = dfz.groupby('chunk').agg({'time':np.median, 'ch0z':np.sum, 'ch1z':np.sum})
 
 #Calculate local maximuns
 ordernow = st.number_input('select order to find max of profiles', min_value = 1, max_value = 100, value = 8)
-maximuns = rgrelextrema(dfg.ch0z.to_numpy(), np.greater, order = ordernow)
+maximuns = argrelextrema(dfg.ch0z.to_numpy(), np.greater, order = ordernow)
 maximuns_times = dfg.iloc[maximuns[0][2:-2], 0].to_list()
 
 dfg0 = dfg.loc[:,['time', 'ch0z']]
