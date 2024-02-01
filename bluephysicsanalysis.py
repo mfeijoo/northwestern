@@ -5,7 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import boto3
 from smart_open import open
-from scipy import argrelextrema
+import scipy
 #from glob import glob
 
 st.title('Blue Physics Analysis')
