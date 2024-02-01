@@ -64,9 +64,9 @@ def plotfig(df, x_string = 'time', y_string = 'voltage'):
     fig.update_xaxes(title = 'time (s)')
     return fig
 
-fig1 = plotfigch(dftp)
+#fig1 = plotfigch(dftp)
 
-st.plotly_chart(fig1)
+#st.plotly_chart(fig1)
 dfz['chunk'] = dfz.number // int(300000/750)
 dfg = dfz.groupby('chunk').agg({'time':np.median, 'ch0z':np.sum, 'ch1z':np.sum})
 
