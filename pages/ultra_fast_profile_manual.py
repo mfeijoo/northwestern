@@ -79,7 +79,7 @@ dfgtp = pd.concat([dfg0, dfg1])
 fig1b = px.line(dfgtp, x='time', y='signal', color = 'ch', markers = False)
 fig1b.update_xaxes(title = 'time (s)')
 
-t0 = st.number_input('time before beam on', min_value=0.0, max_value=df.time.round(1).max(), value = 1)
+t0 = st.number_input('time before beam on', min_value=0.0, max_value=df.time.round(1).max(), value = 1.00)
 t1 = st.number_input('time after beam off', min_value=0.0, max_value=df.time.round(1).max(), value = last_time -1)
 t4 = st.number_input('time begining of Profile', min_value=0.0, max_value=df.time.round(1).max())
 t5 = st.number_input('time end of Profile', min_value=0.0, max_value=df.time.round(1).max())
@@ -181,6 +181,17 @@ fig7.add_annotation(
         x = -1,
         y = 50,
         text = 'Size: %.2f mm' %fieldsize,
+        font = dict(size = 11, color = 'blue'),
+        showarrow = False
+        )
+#calculate field size using soft curve
+edge1soft = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.dosepercent > 50), 'pos'].max()
+edge2soft = dfzprofile.loc[(dfzprofile.pos < 0) & (dfzprofile.dosepercent > 50), 'pos'].min()
+fieldsizesoft = edge1soft - edge2soft
+fig7.add_annotation(
+        x = -1,
+        y = 40,
+        text = 'Size-soft: %.2f mm' %fieldsizesoft,
         font = dict(size = 11, color = 'red'),
         showarrow = False
         )

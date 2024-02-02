@@ -149,6 +149,7 @@ profilefigs = []
 dfzprofiles = []
 profiletimes = []
 list_of_field_sizes = []
+list_of_field_sizes_soft = []
 profilespeed = st.number_input('estimated motor speed', min_value = 8.00, max_value = 30.00, value = 9.26)
 softmaxprofile = st.slider('soft value to calculate pdd maximum', min_value=0.9, max_value =1.0, value=0.90)
 profilesoft = st.slider('Soft value for profile', min_value =0, max_value =1000, value = 500)
@@ -202,11 +203,24 @@ for tnow in maximun_times_all:
             x = -1,
             y = 50,
             text = 'Size: %.2f mm' %fieldsize,
-            font = dict(size = 11, color = 'red'),
+            font = dict(size = 11, color = 'blue'),
             showarrow = False
             )
 
     list_of_field_sizes.append(fieldsize.round(2))
+    #calculate field size soft
+    edge1soft = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.dosepercent > 50), 'pos'].max()
+    edge2soft = dfzprofile.loc[(dfzprofile.pos < 0) & (dfzprofile.dosepercent > 50), 'pos'].min()
+    fieldsizesoft = edge1soft - edge2soft
+    fig7.add_annotation(
+            x = -1,
+            y = 40,
+            text = 'Size-soft: %.2f mm' %fieldsizesoft,
+            font = dict(size = 11, color = 'red'),
+            showarrow = False
+            )
+
+    list_of_field_sizes_soft.append(fieldsizesoft)
     #calculate penumbra
     penumbraright1 = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.reldose > 80), 'pos'].max()
     penumbraright2 = dfzprofile.loc[(dfzprofile.pos > 0) & (dfzprofile.reldose > 20), 'pos'].max()
@@ -246,4 +260,5 @@ for tnow, fignow, df in zip(profiletimes, profilefigs, dfzprofiles):
         st.dataframe(df.loc[:,['pos', 'reldose', 'dosesoft', 'dosepercent']])
     
 st.write('List of Field Sizes')
-st.write(list_of_field_sizes)
+dffieldsize = pd.DataFrame({'Field Size pulses':list_of_field_sizes, 'Field Size soft':list_of_field_sizes_soft})
+st.dataframe(dffieldsize)
